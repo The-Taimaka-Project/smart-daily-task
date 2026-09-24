@@ -1,22 +1,37 @@
 import { notFound } from "next/navigation";
 import { getSurveyConfig } from "@/server/actions/survey-configs";
-import { loadChildren, loadHouseholds, loadPregnancyBirths, listSurveyDatesDesc } from "@/server/queries/survey-data";
 import {
+  loadChildren,
+  loadHouseholds,
+  loadHouseholdMembers,
+  loadPregnancyBirths,
+  listSurveyDatesDesc,
+} from "@/server/queries/survey-data";
+import {
+  computeDeathsByTeam,
   computeHhTeamGrid,
   computeMissingClusterHouseholds,
   computePregnancyDeathFlags,
   computeSecondVisits,
+  computeTeamDuration,
   computeTeamGeopointSummary,
   computeTimeDistribution,
   findHouseholdsByTeam,
   TIME_BUCKET_LABELS,
 } from "@/server/pipeline/dashboard";
-import { odkSubmissionUrl } from "@/server/odk/client";
+import { odkEditHref } from "@/server/odk/client";
 import { DateSelect } from "../date-select";
 import { TeamLookup } from "../team-lookup";
 import { NavTabs } from "../nav-tabs";
 
 const EXTREME_VALUE_FLAGS = new Set(["hl_ext", "muac_ext", "weight_ext"]);
+
+function formatMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes.toFixed(1)} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  return `${hours}h ${mins}m`;
+}
 
 type FlaggedChildRow = {
   targetOdkId: string;
@@ -43,10 +58,11 @@ export default async function DailySubmissionCheckPage({
   const config = await getSurveyConfig(id);
   if (!config) notFound();
 
-  const [households, children, pregnancyBirths] = await Promise.all([
+  const [households, children, pregnancyBirths, householdMembers] = await Promise.all([
     loadHouseholds(id),
     loadChildren(id),
     loadPregnancyBirths(id),
+    loadHouseholdMembers(id),
   ]);
 
   const dates = listSurveyDatesDesc(households);
@@ -80,6 +96,7 @@ export default async function DailySubmissionCheckPage({
   // visit -- including it here would falsely flag every revisited household
   // as a "count != 1" duplicate in what's meant to catch mis-keyed ids.
   const nonRevisitHouseholds = households.filter((h) => h.formId !== config.revisitFormId);
+  const teamDuration = selectedDate ? computeTeamDuration(nonRevisitHouseholds, selectedDate) : [];
   const grid = selectedDate
     ? computeHhTeamGrid(nonRevisitHouseholds, selectedDate, config.expectedHhPerCluster)
     : null;
@@ -91,6 +108,9 @@ export default async function DailySubmissionCheckPage({
   // All dates, not just the selected one -- shown alongside Extreme values
   // and Flagged measurements below, which are both all-dates too.
   const pregnancyDeathFlags = computePregnancyDeathFlags(households, pregnancyBirths);
+  const deathMembers = householdMembers.filter((m) => m.source === "death");
+  const under5DeathsByTeam = computeDeathsByTeam(households, deathMembers, true);
+  const totalDeathsByTeam = computeDeathsByTeam(households, deathMembers, false);
 
   return (
     <div>
@@ -145,7 +165,7 @@ export default async function DailySubmissionCheckPage({
                           </td>
                           <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
                             <a
-                              href={odkSubmissionUrl(config.odkBaseUrl, config.odkProjectId, h.formId, h.odkId)}
+                              href={odkEditHref(id, h.formId, h.odkId)}
                               target="_blank"
                               rel="noreferrer"
                               className="text-blue-600 underline dark:text-blue-400"
@@ -279,6 +299,9 @@ export default async function DailySubmissionCheckPage({
                           start time
                         </th>
                         <th className="border border-neutral-200 px-2 py-1 text-left dark:border-neutral-800">
+                          end time
+                        </th>
+                        <th className="border border-neutral-200 px-2 py-1 text-left dark:border-neutral-800">
                           absent_hh
                         </th>
                         <th className="border border-neutral-200 px-2 py-1 text-left dark:border-neutral-800">
@@ -299,6 +322,9 @@ export default async function DailySubmissionCheckPage({
                             {r.startTime ? new Date(r.startTime).toLocaleString() : ""}
                           </td>
                           <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
+                            {r.endTime ? new Date(r.endTime).toLocaleString() : ""}
+                          </td>
+                          <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
                             {r.absentHh}
                           </td>
                           <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
@@ -310,7 +336,7 @@ export default async function DailySubmissionCheckPage({
                           </td>
                           <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
                             <a
-                              href={odkSubmissionUrl(config.odkBaseUrl, config.odkProjectId, r.formId, r.odkId)}
+                              href={odkEditHref(id, r.formId, r.odkId)}
                               target="_blank"
                               rel="noreferrer"
                               className="text-blue-600 underline dark:text-blue-400"
@@ -327,7 +353,7 @@ export default async function DailySubmissionCheckPage({
             )}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="mb-4 grid gap-4 md:grid-cols-2">
             <div className="rounded border border-neutral-200 p-4 text-sm dark:border-neutral-800">
               <h3 className="mb-2 text-base font-semibold">Geopoint completeness</h3>
               <ul className="flex flex-col gap-1">
@@ -383,6 +409,45 @@ export default async function DailySubmissionCheckPage({
               )}
             </div>
           </div>
+
+          <div className="mb-4 rounded border border-neutral-200 p-4 text-sm dark:border-neutral-800">
+            <h3 className="mb-2 text-base font-semibold">Submission duration</h3>
+            <p className="mb-2 text-neutral-500">
+              Time between a form&apos;s start and end, original form only (revisit visits aren&apos;t
+              comparable to a first visit).
+            </p>
+            {teamDuration.length === 0 ? (
+              <p className="text-neutral-500">No submissions with both a start and end time for this date.</p>
+            ) : (
+              <table className="min-w-full border-collapse text-xs">
+                <thead>
+                  <tr>
+                    {["team", "avg. duration", "whole duration", "n"].map((h) => (
+                      <th key={h} className="border border-neutral-200 px-2 py-1 text-left dark:border-neutral-800">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamDuration.map((t) => (
+                    <tr key={t.teamNumber}>
+                      <td className="border border-neutral-200 px-2 py-1 font-medium dark:border-neutral-800">
+                        {t.teamNumber}
+                      </td>
+                      <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
+                        {formatMinutes(t.avgMinutes)}
+                      </td>
+                      <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
+                        {formatMinutes(t.wholeDurationMinutes)}
+                      </td>
+                      <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">{t.n}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </section>
       )}
 
@@ -427,7 +492,7 @@ export default async function DailySubmissionCheckPage({
                     <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">{f.outcome}</td>
                     <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
                       <a
-                        href={odkSubmissionUrl(config.odkBaseUrl, config.odkProjectId, f.formId, f.householdOdkId)}
+                        href={odkEditHref(id, f.formId, f.householdOdkId)}
                         target="_blank"
                         rel="noreferrer"
                         className="text-blue-600 underline dark:text-blue-400"
@@ -441,6 +506,18 @@ export default async function DailySubmissionCheckPage({
             </table>
           </div>
         )}
+      </section>
+
+      <section className="mb-6 rounded border border-neutral-200 p-4 dark:border-neutral-800">
+        <h2 className="mb-3 text-lg font-semibold">Deaths recorded</h2>
+        <p className="mb-3 text-sm text-neutral-500">
+          Every death entered in a household&apos;s death_list, counted by the team that submitted the
+          household -- across all dates.
+        </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <DeathCountTable title="Under-5 deaths" rows={under5DeathsByTeam} />
+          <DeathCountTable title="Total deaths (all ages)" rows={totalDeathsByTeam} />
+        </div>
       </section>
 
       <section className="rounded border border-neutral-200 p-4 dark:border-neutral-800">
@@ -458,6 +535,41 @@ export default async function DailySubmissionCheckPage({
         </p>
         <FlaggedTable rows={otherFlags} />
       </section>
+    </div>
+  );
+}
+
+function DeathCountTable({ title, rows }: { title: string; rows: { teamNumber: number; count: number }[] }) {
+  const total = rows.reduce((s, r) => s + r.count, 0);
+  return (
+    <div className="rounded border border-neutral-200 p-4 text-sm dark:border-neutral-800">
+      <h3 className="mb-2 text-base font-semibold">{title}</h3>
+      {rows.length === 0 ? (
+        <p className="text-neutral-500">None recorded.</p>
+      ) : (
+        <table className="min-w-full border-collapse text-xs">
+          <thead>
+            <tr>
+              <th className="border border-neutral-200 px-2 py-1 text-left dark:border-neutral-800">team</th>
+              <th className="border border-neutral-200 px-2 py-1 text-left dark:border-neutral-800">deaths</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.teamNumber}>
+                <td className="border border-neutral-200 px-2 py-1 font-medium dark:border-neutral-800">
+                  {r.teamNumber}
+                </td>
+                <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">{r.count}</td>
+              </tr>
+            ))}
+            <tr className="font-semibold">
+              <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">Total</td>
+              <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">{total}</td>
+            </tr>
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

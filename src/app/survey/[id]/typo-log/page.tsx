@@ -5,7 +5,7 @@ import { loadChildren, loadHouseholds } from "@/server/queries/survey-data";
 import { computeTypoLogRows, type TypoLogRow } from "@/server/pipeline/typo-log";
 import { deepGet, toStringLike } from "@/server/odk/deep-get";
 import { CHILD_PATHS } from "@/server/pipeline/field-paths";
-import { odkSubmissionUrl } from "@/server/odk/client";
+import { odkEditHref } from "@/server/odk/client";
 import { NavTabs } from "../nav-tabs";
 import { TypoLogList, type TypoLogRowWithReview } from "./typo-log-list";
 
@@ -68,7 +68,7 @@ export default async function TypoLogPage({ params }: { params: Promise<{ id: st
       const childName = child ? toStringLike(deepGet(child.raw, CHILD_PATHS.memberName)) : null;
       const review = reviewByOdkId.get(row.targetOdkId);
       const formId = householdFormIdByOdkId.get(row.householdOdkId) ?? config.mainFormId;
-      const odkUrl = odkSubmissionUrl(config.odkBaseUrl, config.odkProjectId, formId, row.householdOdkId);
+      const odkUrl = odkEditHref(id, formId, row.householdOdkId);
       return {
         ...row,
         childName,

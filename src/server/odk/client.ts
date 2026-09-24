@@ -478,8 +478,9 @@ export async function listOdkForms(
   return forms;
 }
 
-/** Deep link to a specific submission in the ODK Central web UI, so a
- * reviewer can jump straight from this app to editing that record. */
+/** Deep link to a specific submission in the ODK Central web UI (read-only
+ * detail page) -- kept for reference/fallback; the app's own links use
+ * `getSubmissionEditUrl` below to jump straight into edit mode instead. */
 export function odkSubmissionUrl(
   baseUrl: string,
   projectId: number,
@@ -487,6 +488,61 @@ export function odkSubmissionUrl(
   odkId: string,
 ): string {
   return `${trimTrailingSlash(baseUrl)}/#/projects/${projectId}/forms/${encodeURIComponent(formId)}/submissions/${encodeURIComponent(odkId)}`;
+}
+
+/** Href for an "Open in ODK Central" link that lands in edit mode -- points
+ * at this app's own /api/survey-configs/[id]/odk-edit route (see
+ * getSubmissionEditUrl below), not at ODK Central directly, since the real
+ * Enketo edit URL has to be fetched fresh with the current user's session. */
+export function odkEditHref(surveyConfigId: string, formId: string, odkId: string): string {
+  const params = new URLSearchParams({ formId, odkId });
+  return `/api/survey-configs/${surveyConfigId}/odk-edit?${params.toString()}`;
+}
+
+/**
+ * Fetches the Enketo edit-webform URL for a submission from ODK Central's
+ * own API (`GET .../submissions/:instanceId/edit`), so "Open in ODK
+ * Central" can jump straight into edit mode instead of the read-only
+ * submission detail page.
+ *
+ * Confirmed directly against a real server: this endpoint does NOT return
+ * JSON -- it's a 302 whose `Location` header is the actual Enketo edit URL
+ * (e.g. `https://.../-/edit/<webformId>?instance_id=...&return_url=...`).
+ * Must be fetched with `redirect: "manual"` and the Location header read
+ * off the redirect response itself; letting fetch auto-follow it instead
+ * returns Enketo's rendered edit-form HTML (200 OK), which looks like a
+ * plausible response but is useless here -- that page is meant to be
+ * loaded by the *browser* (which establishes its own Enketo session when
+ * it requests that URL), not fetched server-side and relayed. Not routed
+ * through `odkFetch`/`request()` (the DNS-retry/HTTP2-fallback machinery
+ * built for bulk pulls) since this is a single small interactive request
+ * where that complexity isn't needed, and manual-redirect handling doesn't
+ * fit `request()`'s current shape.
+ */
+export async function getSubmissionEditUrl(
+  session: OdkSession,
+  projectId: number,
+  formId: string,
+  instanceId: string,
+): Promise<string> {
+  const url = `${trimTrailingSlash(session.baseUrl)}/v1/projects/${projectId}/forms/${encodeURIComponent(formId)}/submissions/${encodeURIComponent(instanceId)}/edit`;
+  const res = await undiciFetch(url, {
+    headers: { authorization: `Bearer ${session.token}` },
+    redirect: "manual",
+  });
+
+  if (res.status === 401 || res.status === 403) {
+    throw new OdkAuthError("ODK Central session expired or unauthorized.");
+  }
+  const location = res.headers.get("location");
+  if (res.status >= 300 && res.status < 400 && location) {
+    return new URL(location, url).toString();
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new OdkRequestError(`ODK Central edit-URL request failed (${res.status}): ${text.slice(0, 200)}`, res.status);
+  }
+  throw new Error(`ODK Central's edit endpoint didn't redirect as expected (status ${res.status}, no Location header).`);
 }
 
 export async function listOdkProjects(
