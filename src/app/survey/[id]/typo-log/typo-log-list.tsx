@@ -98,7 +98,8 @@ export function TypoLogList({
 
   const statusEntries = Object.values(saveStatus);
   const anySaving = statusEntries.some((s) => s.state === "saving");
-  const errorCount = statusEntries.filter((s) => s.state === "error").length;
+  const errors = statusEntries.filter((s) => s.state === "error");
+  const errorCount = errors.length;
   const anySaved = statusEntries.some((s) => s.state === "saved");
 
   const tableHeaders = [
@@ -161,6 +162,7 @@ export function TypoLogList({
             <span className="flex items-center gap-2">
               <span className="text-red-600 dark:text-red-400">
                 {errorCount} change{errorCount > 1 ? "s" : ""} failed to save
+                {errors[0]?.message ? `: ${errors[0].message}` : ""}
               </span>
               <button
                 type="button"
