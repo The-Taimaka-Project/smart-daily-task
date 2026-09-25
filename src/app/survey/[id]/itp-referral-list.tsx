@@ -88,9 +88,22 @@ export function ItpReferralList({
     saveRow(row, { note: value });
   }
 
+  function retryAllFailed() {
+    for (const [key, status] of Object.entries(saveStatus)) {
+      if (status.state !== "error") continue;
+      const row = localRows.find((r) => `${r.targetKind}:${r.targetOdkId}` === key);
+      if (row) saveRow(row, {});
+    }
+  }
+
   if (localRows.length === 0) {
     return <p className="text-sm text-neutral-500">No ITP referrals.</p>;
   }
+
+  const statusEntries = Object.values(saveStatus);
+  const anySaving = statusEntries.some((s) => s.state === "saving");
+  const errorCount = statusEntries.filter((s) => s.state === "error").length;
+  const anySaved = statusEntries.some((s) => s.state === "saved");
 
   const tableHeaders = [
     "survey_date",
@@ -127,7 +140,27 @@ export function ItpReferralList({
 
   return (
     <div>
-      <div className="mb-2 flex justify-end">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-sm">
+          {anySaving && <span className="text-neutral-500">Saving...</span>}
+          {!anySaving && errorCount > 0 && (
+            <span className="flex items-center gap-2">
+              <span className="text-red-600 dark:text-red-400">
+                {errorCount} change{errorCount > 1 ? "s" : ""} failed to save
+              </span>
+              <button
+                type="button"
+                onClick={retryAllFailed}
+                className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs dark:border-neutral-700"
+              >
+                Retry all
+              </button>
+            </span>
+          )}
+          {!anySaving && errorCount === 0 && anySaved && (
+            <span className="text-emerald-600 dark:text-emerald-400">All changes saved</span>
+          )}
+        </div>
         <CopyTableButton headers={tableHeaders} rows={tableRows} />
       </div>
       <div className="overflow-x-auto">
@@ -149,7 +182,6 @@ export function ItpReferralList({
                 "enrolled?",
                 "pid",
                 "note",
-                "save status",
               ].map((h) => (
                 <th key={h} className="border border-neutral-200 px-2 py-1 text-left dark:border-neutral-800">
                   {h}
@@ -160,7 +192,6 @@ export function ItpReferralList({
           <tbody>
             {localRows.map((r) => {
               const key = `${r.targetKind}:${r.targetOdkId}`;
-              const status = saveStatus[key];
               return (
                 <tr key={key}>
                   <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">{r.surveyDate}</td>
@@ -203,24 +234,6 @@ export function ItpReferralList({
                       onBlur={(e) => onNoteBlur(r, e.target.value)}
                       className="w-32 rounded border border-neutral-300 px-1 py-0.5 dark:border-neutral-700 dark:bg-neutral-900"
                     />
-                  </td>
-                  <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
-                    {status?.state === "saving" && <span className="text-neutral-500">Saving...</span>}
-                    {status?.state === "saved" && <span className="text-emerald-600 dark:text-emerald-400">Saved</span>}
-                    {status?.state === "error" && (
-                      <span className="flex items-center gap-1.5">
-                        <span className="text-red-600 dark:text-red-400" title={status.message}>
-                          Not saved
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => saveRow(r, {})}
-                          className="rounded border border-neutral-300 px-1.5 py-0.5 dark:border-neutral-700"
-                        >
-                          Retry
-                        </button>
-                      </span>
-                    )}
                   </td>
                 </tr>
               );

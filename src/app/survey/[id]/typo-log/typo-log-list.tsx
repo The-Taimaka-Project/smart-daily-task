@@ -90,11 +90,22 @@ export function TypoLogList({
     if (patch) update(targetOdkId, {}, patch);
   }
 
+  function retryAllFailed() {
+    for (const [targetOdkId, status] of Object.entries(saveStatus)) {
+      if (status.state === "error") retry(targetOdkId);
+    }
+  }
+
   const visible = hideResolved ? localRows.filter((r) => r.daniRevise !== true) : localRows;
 
   if (rows.length === 0) {
     return <p className="text-sm text-neutral-500">Nothing flagged.</p>;
   }
+
+  const statusEntries = Object.values(saveStatus);
+  const anySaving = statusEntries.some((s) => s.state === "saving");
+  const errorCount = statusEntries.filter((s) => s.state === "error").length;
+  const anySaved = statusEntries.some((s) => s.state === "saved");
 
   const tableHeaders = [
     "status",
@@ -149,7 +160,27 @@ export function TypoLogList({
         <input type="checkbox" checked={hideResolved} onChange={(e) => setHideResolved(e.target.checked)} />
         Hide rows Dani has already revised
       </label>
-      <div className="mb-2 flex justify-end">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-sm">
+          {anySaving && <span className="text-neutral-500">Saving...</span>}
+          {!anySaving && errorCount > 0 && (
+            <span className="flex items-center gap-2">
+              <span className="text-red-600 dark:text-red-400">
+                {errorCount} change{errorCount > 1 ? "s" : ""} failed to save
+              </span>
+              <button
+                type="button"
+                onClick={retryAllFailed}
+                className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs dark:border-neutral-700"
+              >
+                Retry all
+              </button>
+            </span>
+          )}
+          {!anySaving && errorCount === 0 && anySaved && (
+            <span className="text-emerald-600 dark:text-emerald-400">All changes saved</span>
+          )}
+        </div>
         <CopyTableButton headers={tableHeaders} rows={tableRows} />
       </div>
       <div className="overflow-x-auto">
@@ -177,7 +208,6 @@ export function TypoLogList({
                 "correct height",
                 "correct muac",
                 "note",
-                "save status",
                 "odk",
                 "dani-revise",
               ].map((h) => (
@@ -303,28 +333,6 @@ export function TypoLogList({
                     }}
                     className="w-36 rounded border border-neutral-300 px-1 py-0.5 dark:border-neutral-700 dark:bg-transparent"
                   />
-                </td>
-                <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
-                  {saveStatus[r.targetOdkId]?.state === "saving" && (
-                    <span className="text-neutral-500">Saving...</span>
-                  )}
-                  {saveStatus[r.targetOdkId]?.state === "saved" && (
-                    <span className="text-emerald-600 dark:text-emerald-400">Saved</span>
-                  )}
-                  {saveStatus[r.targetOdkId]?.state === "error" && (
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-red-600 dark:text-red-400" title={saveStatus[r.targetOdkId]?.message}>
-                        Not saved
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => retry(r.targetOdkId)}
-                        className="rounded border border-neutral-300 px-1.5 py-0.5 dark:border-neutral-700"
-                      >
-                        Retry
-                      </button>
-                    </span>
-                  )}
                 </td>
                 <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
                   <a
