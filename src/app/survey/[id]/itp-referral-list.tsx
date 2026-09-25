@@ -55,12 +55,6 @@ export function ItpReferralList({
     try {
       await setItpReferralReview(surveyConfigId, row.targetKind, row.targetOdkId, merged.enrolled, merged.note, merged.pid);
       setSaveStatus((prev) => ({ ...prev, [key]: { state: "saved" } }));
-      setTimeout(() => {
-        setSaveStatus((prev) => {
-          const { [key]: _, ...rest } = prev;
-          return rest;
-        });
-      }, 1500);
     } catch (err) {
       setSaveStatus((prev) => ({
         ...prev,

@@ -71,12 +71,6 @@ export function TypoLogList({
     try {
       await setTypoLogReview(surveyConfigId, targetOdkId, dbPatch);
       setSaveStatus((prev) => ({ ...prev, [targetOdkId]: { state: "saved" } }));
-      setTimeout(() => {
-        setSaveStatus((prev) => {
-          const { [targetOdkId]: _, ...rest } = prev;
-          return rest;
-        });
-      }, 1500);
     } catch (err) {
       setSaveStatus((prev) => ({
         ...prev,
