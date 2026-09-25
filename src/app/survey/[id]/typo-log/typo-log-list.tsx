@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { setTypoLogReview, type TypoLogPatch } from "@/server/actions/typo-log-reviews";
 import type { TypoLogRow } from "@/server/pipeline/typo-log";
+import { CopyTableButton } from "../copy-table-button";
 
 export type TypoLogRowWithReview = TypoLogRow & {
   odkUrl: string;
@@ -67,12 +68,62 @@ export function TypoLogList({
     return <p className="text-sm text-neutral-500">Nothing flagged.</p>;
   }
 
+  const tableHeaders = [
+    "status",
+    "flag(s)",
+    "survey_date",
+    "team",
+    "hh_id",
+    "child_id",
+    "child",
+    "explanation",
+    "birthdate",
+    "age",
+    "weight",
+    "height",
+    "muac",
+    "typo?",
+    "correct birthdate",
+    "correct age",
+    "correct weight",
+    "correct height",
+    "correct muac",
+    "note",
+    "dani-revise",
+  ];
+  const tableRows = visible.map((r) => [
+    r.stillFlagged ? "Flagged" : "Resolved",
+    r.flaggedIndices.map((f) => `${f.index} ${f.z.toFixed(2)}`).join("; "),
+    r.surveyDate,
+    r.teamNumber,
+    r.hhId,
+    r.childId,
+    r.childName,
+    r.explanation,
+    r.birthdate,
+    r.ageMonths,
+    r.weightKg,
+    r.heightCm,
+    r.muacMm,
+    yesNoValue(r.isTypo),
+    r.correctBirthdate,
+    r.correctAgeMonths,
+    r.correctWeightKg,
+    r.correctHeightCm,
+    r.correctMuacMm,
+    r.note,
+    yesNoValue(r.daniRevise),
+  ]);
+
   return (
     <div>
       <label className="mb-3 flex items-center gap-2 text-sm text-neutral-500">
         <input type="checkbox" checked={hideResolved} onChange={(e) => setHideResolved(e.target.checked)} />
         Hide rows Dani has already revised
       </label>
+      <div className="mb-2 flex justify-end">
+        <CopyTableButton headers={tableHeaders} rows={tableRows} />
+      </div>
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse text-xs">
           <thead>

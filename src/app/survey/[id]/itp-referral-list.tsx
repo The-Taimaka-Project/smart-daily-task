@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { setItpReferralReview } from "@/server/actions/itp-referral-reviews";
 import type { ItpReferralRow } from "@/server/pipeline/itp-referral";
+import { CopyTableButton } from "./copy-table-button";
 
 export type ItpReferralRowWithReview = ItpReferralRow & {
   enrolled: boolean | null;
@@ -57,8 +58,45 @@ export function ItpReferralList({
     return <p className="text-sm text-neutral-500">No ITP referrals.</p>;
   }
 
+  const tableHeaders = [
+    "survey_date",
+    "team",
+    "otp",
+    "settlement",
+    "child",
+    "age",
+    "imci emergency",
+    "muac",
+    "weight",
+    "height",
+    "referral_itp",
+    "enrolled?",
+    "pid",
+    "note",
+  ];
+  const tableRows = localRows.map((r) => [
+    r.surveyDate,
+    r.teamNumber,
+    r.otpName,
+    r.settlement,
+    r.childName,
+    r.ageMonths,
+    `${r.imciEmergencyList ?? ""}${r.imciEmergencyListOther ? ` (${r.imciEmergencyListOther})` : ""}`,
+    r.muac,
+    r.weight,
+    r.finalHl,
+    r.referralItp,
+    r.enrolled === true ? "Yes" : r.enrolled === false ? "No" : "",
+    r.pid,
+    r.note,
+  ]);
+
   return (
-    <div className="overflow-x-auto">
+    <div>
+      <div className="mb-2 flex justify-end">
+        <CopyTableButton headers={tableHeaders} rows={tableRows} />
+      </div>
+      <div className="overflow-x-auto">
       <table className="min-w-full border-collapse text-xs">
         <thead>
           <tr>
@@ -136,6 +174,7 @@ export function ItpReferralList({
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

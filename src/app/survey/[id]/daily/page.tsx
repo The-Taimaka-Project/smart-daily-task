@@ -84,10 +84,21 @@ export default async function DailySubmissionCheckPage({
         heightCm: c.heightCm,
         muacMm: c.muacMm,
       };
-      if (EXTREME_VALUE_FLAGS.has(flag)) extremeValueFlags.push(row);
-      else otherFlags.push(row);
+      if (EXTREME_VALUE_FLAGS.has(flag)) {
+        // The form's own extreme-value flag is based on the RAW entry --
+        // if our own sentinel-cleaning has since nulled out that exact
+        // value (e.g. a raw 260mm MUAC placeholder), there's nothing real
+        // left to show for this flag, so skip the row entirely.
+        if (flag === "weight_ext" && c.weightKg === null) continue;
+        if (flag === "hl_ext" && c.heightCm === null) continue;
+        if (flag === "muac_ext" && c.muacMm === null) continue;
+        extremeValueFlags.push(row);
+      } else {
+        otherFlags.push(row);
+      }
     }
   }
+  extremeValueFlags.sort((a, b) => (a.surveyDate < b.surveyDate ? -1 : a.surveyDate > b.surveyDate ? 1 : 0));
 
   const teamGeopoint = selectedDate ? computeTeamGeopointSummary(households, selectedDate) : [];
   const timeDistribution = selectedDate ? computeTimeDistribution(households, selectedDate) : [];
