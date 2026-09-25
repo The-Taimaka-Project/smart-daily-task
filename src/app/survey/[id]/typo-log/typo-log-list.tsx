@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { setTypoLogReview, type TypoLogPatch } from "@/server/actions/typo-log-reviews";
 import type { TypoLogRow } from "@/server/pipeline/typo-log";
 import { CopyTableButton } from "../copy-table-button";
+
+type SaveStatus = { state: "saving" | "saved" | "error"; message?: string };
 
 export type TypoLogRowWithReview = TypoLogRow & {
   odkUrl: string;
@@ -52,14 +54,40 @@ export function TypoLogList({
   rows: TypoLogRowWithReview[];
 }) {
   const [localRows, setLocalRows] = useState(rows);
-  const [isPending, startTransition] = useTransition();
   const [hideResolved, setHideResolved] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<Record<string, SaveStatus>>({});
+  const [lastPatch, setLastPatch] = useState<Record<string, TypoLogPatch>>({});
 
-  function update(targetOdkId: string, patch: Partial<TypoLogRowWithReview>, dbPatch: TypoLogPatch) {
+  // Awaited and error-caught on purpose: the previous version fired this as
+  // an un-awaited, uncaught call, so a failed save (e.g. an auth problem)
+  // looked identical to a successful one -- the edit disappeared on the
+  // next reload with no indication anything went wrong. Now every save
+  // attempt gets a visible Saving/Saved/Error status, and a failed one
+  // offers Retry rather than silently vanishing.
+  async function update(targetOdkId: string, patch: Partial<TypoLogRowWithReview>, dbPatch: TypoLogPatch) {
     setLocalRows((prev) => prev.map((r) => (r.targetOdkId === targetOdkId ? { ...r, ...patch } : r)));
-    startTransition(() => {
-      setTypoLogReview(surveyConfigId, targetOdkId, dbPatch);
-    });
+    setLastPatch((prev) => ({ ...prev, [targetOdkId]: { ...prev[targetOdkId], ...dbPatch } }));
+    setSaveStatus((prev) => ({ ...prev, [targetOdkId]: { state: "saving" } }));
+    try {
+      await setTypoLogReview(surveyConfigId, targetOdkId, dbPatch);
+      setSaveStatus((prev) => ({ ...prev, [targetOdkId]: { state: "saved" } }));
+      setTimeout(() => {
+        setSaveStatus((prev) => {
+          const { [targetOdkId]: _, ...rest } = prev;
+          return rest;
+        });
+      }, 1500);
+    } catch (err) {
+      setSaveStatus((prev) => ({
+        ...prev,
+        [targetOdkId]: { state: "error", message: err instanceof Error ? err.message : "Save failed." },
+      }));
+    }
+  }
+
+  function retry(targetOdkId: string) {
+    const patch = lastPatch[targetOdkId];
+    if (patch) update(targetOdkId, {}, patch);
   }
 
   const visible = hideResolved ? localRows.filter((r) => r.daniRevise !== true) : localRows;
@@ -149,6 +177,7 @@ export function TypoLogList({
                 "correct height",
                 "correct muac",
                 "note",
+                "save status",
                 "odk",
                 "dani-revise",
               ].map((h) => (
@@ -195,7 +224,6 @@ export function TypoLogList({
                 <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">{r.muacMm}</td>
                 <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
                   <select
-                    disabled={isPending}
                     value={yesNoValue(r.isTypo)}
                     onChange={(e) => {
                       const isTypo = parseYesNo(e.target.value);
@@ -277,6 +305,28 @@ export function TypoLogList({
                   />
                 </td>
                 <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
+                  {saveStatus[r.targetOdkId]?.state === "saving" && (
+                    <span className="text-neutral-500">Saving...</span>
+                  )}
+                  {saveStatus[r.targetOdkId]?.state === "saved" && (
+                    <span className="text-emerald-600 dark:text-emerald-400">Saved</span>
+                  )}
+                  {saveStatus[r.targetOdkId]?.state === "error" && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-red-600 dark:text-red-400" title={saveStatus[r.targetOdkId]?.message}>
+                        Not saved
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => retry(r.targetOdkId)}
+                        className="rounded border border-neutral-300 px-1.5 py-0.5 dark:border-neutral-700"
+                      >
+                        Retry
+                      </button>
+                    </span>
+                  )}
+                </td>
+                <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
                   <a
                     href={r.odkUrl}
                     target="_blank"
@@ -288,7 +338,6 @@ export function TypoLogList({
                 </td>
                 <td className="border border-neutral-200 px-2 py-1 dark:border-neutral-800">
                   <select
-                    disabled={isPending}
                     value={yesNoValue(r.daniRevise)}
                     onChange={(e) => {
                       const daniRevise = parseYesNo(e.target.value);
