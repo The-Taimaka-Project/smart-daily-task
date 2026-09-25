@@ -32,13 +32,7 @@ function LoginForm() {
 
   return (
     <div className="mx-auto mt-16 max-w-sm">
-      <h1 className="mb-2 text-xl font-semibold">Sign in</h1>
-      <p className="mb-6 text-sm text-neutral-500">
-        Use your ODK Central email and password -- there&apos;s no separate app password. Signing
-        in here also connects your ODK Central account for pulling data. Your password is sent
-        straight to ODK Central to check and is never stored; only the resulting session token is
-        (encrypted). Sessions last 24 hours, so you&apos;ll sign in again about once a day.
-      </p>
+      <h1 className="mb-6 text-xl font-semibold">Sign in</h1>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
           ODK Central email
