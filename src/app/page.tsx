@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { listSurveyConfigs } from "@/server/actions/survey-configs";
 
+// This page queries the database directly, so it can't be statically
+// pre-rendered at build time -- doing so would require a real, reachable
+// database inside the Docker build step itself (there isn't one; only the
+// production database, which only exists at runtime). Confirmed as the
+// exact cause of a real Coolify build failure: locally `npm run build`
+// succeeded because Next.js auto-loads .env.local (a real dev database),
+// masking that this page was ever being statically generated at all.
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const configs = await listSurveyConfigs();
 
