@@ -526,12 +526,14 @@ export default async function DailySubmissionCheckPage({
           Everything besides the three Extreme-values codes above. Most of these are also warnings the
           form itself raised at data-entry time: <code>wfh_pos5_warn</code>/<code>wfh_neg5_warn</code>
           {" "}(weight-for-height looks implausibly high/low) and <code>oedema</code> (oedema checkbox --
-          not an error by itself, just worth a second look). Two are computed by this app instead:{" "}
+          not an error by itself, just worth a second look). Three are computed by this app instead:{" "}
           <code>referral_number_mismatch</code> (child was marked referred, but the two referral-number
-          fields on the form don&apos;t match each other) and <code>implausible_measurement</code>{" "}
+          fields on the form don&apos;t match each other), <code>muac_ge_20cm</code> (MUAC 20cm/200mm or
+          more -- unusually large for a 0-59mo child, though still below the hard-implausible cutoff),
+          and <code>implausible_measurement</code>{" "}
           (height/weight/MUAC still outside a hard plausible range after known sentinel values like
-          150cm or 260mm are nulled out) -- this is the only flag here that also excludes the child from
-          the plausibility report and z-score calculations, not just marks them for review.
+          150cm or 260mm are nulled out) -- this last one is the only flag here that also excludes the
+          child from the plausibility report and z-score calculations, not just marks them for review.
         </p>
         <FlaggedTable rows={otherFlags} />
       </section>

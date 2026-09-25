@@ -14,7 +14,6 @@ export function Nav() {
         </Link>
         <nav className="flex items-center gap-4 text-sm">
           <Link href="/">Surveys</Link>
-          <Link href="/odk-login">ODK connection</Link>
           {session?.user?.email && (
             <span className="text-neutral-500">{session.user.email}</span>
           )}

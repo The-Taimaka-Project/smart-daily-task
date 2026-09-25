@@ -25,7 +25,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const odkState = await getOdkSessionForUser(session.user.id);
   if (odkState.status !== "active") {
     return NextResponse.json(
-      { error: "Connect your ODK Central account first (see /odk-login)." },
+      { error: "Your ODK Central session expired -- log out and log in again." },
       { status: 409 },
     );
   }

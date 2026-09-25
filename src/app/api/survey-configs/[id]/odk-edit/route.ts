@@ -28,7 +28,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const odkState = await getOdkSessionForUser(session.user.id);
   if (odkState.status !== "active") {
-    return NextResponse.redirect(new URL("/odk-login", req.url));
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
   try {

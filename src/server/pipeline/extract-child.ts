@@ -112,6 +112,10 @@ export function extractChild(
   if (toBoolLike(deepGet(raw, CHILD_PATHS.hlExt)) === true) flags.push("hl_ext");
   if (toBoolLike(deepGet(raw, CHILD_PATHS.muacExt)) === true) flags.push("muac_ext");
   if (toBoolLike(deepGet(raw, CHILD_PATHS.cOedema)) === true) flags.push("oedema");
+  // App-computed, not a form warning: MUAC >= 20cm (200mm) is unusually
+  // large for a 0-59mo child -- worth a second look even though it's below
+  // the 264mm hard-implausible cutoff that would drop the record entirely.
+  if (cleaned.muacMm !== null && cleaned.muacMm >= 200) flags.push("muac_ge_20cm");
 
   const referralTf = toBoolLike(deepGet(raw, CHILD_PATHS.referralTf));
   const referralNumber = toStringLike(deepGet(raw, CHILD_PATHS.referralNumber));

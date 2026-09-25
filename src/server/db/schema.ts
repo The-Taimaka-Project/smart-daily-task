@@ -30,11 +30,13 @@ export const reviewStatus = pgEnum("review_status", [
   "not_an_error",
 ]);
 
+// No local password: signing in IS connecting ODK Central (see auth.ts) --
+// a user row exists only to attribute created_by/reviewed_by/etc. fields
+// across the app, keyed by ODK Central email.
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
   name: text("name"),
-  passwordHash: text("password_hash").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

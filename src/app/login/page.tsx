@@ -23,7 +23,7 @@ function LoginForm() {
     });
     setLoading(false);
     if (res?.error) {
-      setError("Invalid email or password.");
+      setError("Invalid ODK Central email or password.");
       return;
     }
     router.push(params.get("callbackUrl") ?? "/");
@@ -32,10 +32,16 @@ function LoginForm() {
 
   return (
     <div className="mx-auto mt-16 max-w-sm">
-      <h1 className="mb-6 text-xl font-semibold">Sign in</h1>
+      <h1 className="mb-2 text-xl font-semibold">Sign in</h1>
+      <p className="mb-6 text-sm text-neutral-500">
+        Use your ODK Central email and password -- there&apos;s no separate app password. Signing
+        in here also connects your ODK Central account for pulling data. Your password is sent
+        straight to ODK Central to check and is never stored; only the resulting session token is
+        (encrypted). Sessions last 24 hours, so you&apos;ll sign in again about once a day.
+      </p>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
-          Email
+          ODK Central email
           <input
             type="email"
             required
@@ -45,7 +51,7 @@ function LoginForm() {
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Password
+          ODK Central password
           <input
             type="password"
             required
@@ -63,9 +69,6 @@ function LoginForm() {
           {loading ? "Signing in..." : "Sign in"}
         </button>
       </form>
-      <p className="mt-4 text-sm text-neutral-500">
-        Don&apos;t have an account? Ask whoever administers this app to create one for you.
-      </p>
     </div>
   );
 }

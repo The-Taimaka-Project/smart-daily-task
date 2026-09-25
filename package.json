@@ -8,12 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "create-user": "tsx scripts/create-user.ts"
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "adm-zip": "^0.6.1",
-    "bcryptjs": "^3.0.3",
     "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "jstat": "^1.9.6",

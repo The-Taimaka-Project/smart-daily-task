@@ -44,6 +44,12 @@ yarn-error.log*
 # Claude Code local runtime state (lock files etc.), not project config.
 /.claude/
 
+# One-off drizzle-kit generate output, made to paste into a terminal that
+# had no other way to run the schema push -- the real workflow is
+# `drizzle-kit push` directly against a reachable DATABASE_URL, so this
+# would just go stale (it already doesn't match the current schema).
+/drizzle/
+
 # vercel
 .vercel
 
