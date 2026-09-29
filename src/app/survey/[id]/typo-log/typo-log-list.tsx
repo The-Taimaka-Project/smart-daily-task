@@ -267,10 +267,14 @@ export function TypoLogList({
                 </td>
                 <td className={`border border-neutral-200 px-2 py-1 dark:border-neutral-800 ${diffClass(r.birthdate, r.correctBirthdate)}`}>
                   <input
-                    type="date"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="YYYY-MM-DD"
+                    pattern="\d{4}-\d{2}-\d{2}"
+                    maxLength={10}
                     defaultValue={r.correctBirthdate ?? ""}
                     onBlur={(e) => {
-                      const v = e.target.value || null;
+                      const v = e.target.value.trim() || null;
                       update(r.targetOdkId, { correctBirthdate: v }, { correctBirthdate: v });
                     }}
                     className={inputBase}
