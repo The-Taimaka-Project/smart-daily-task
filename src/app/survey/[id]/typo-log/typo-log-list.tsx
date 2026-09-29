@@ -179,7 +179,7 @@ export function TypoLogList({
         </div>
         <CopyTableButton headers={tableHeaders} rows={tableRows} />
       </div>
-      <div className="max-h-[75vh] overflow-auto">
+      <div className="max-h-[75vh] overflow-auto rounded border border-neutral-200 dark:border-neutral-800">
         <table className="min-w-full border-collapse text-xs">
           <thead>
             <tr>
