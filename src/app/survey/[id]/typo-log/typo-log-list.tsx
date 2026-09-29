@@ -180,7 +180,7 @@ export function TypoLogList({
         <CopyTableButton headers={tableHeaders} rows={tableRows} />
       </div>
       <div className="max-h-[75vh] overflow-auto rounded border border-neutral-200 dark:border-neutral-800">
-        <table className="min-w-full border-collapse text-xs">
+        <table className="min-w-full border-separate border-spacing-0 text-xs">
           <thead>
             <tr>
               {[
@@ -209,7 +209,7 @@ export function TypoLogList({
               ].map((h) => (
                 <th
                   key={h}
-                  className="sticky top-0 z-10 border border-neutral-200 bg-white px-2 py-1 text-left whitespace-nowrap shadow-[0_2px_0_0_#a3a3a3] dark:border-neutral-800 dark:bg-neutral-950 dark:shadow-[0_2px_0_0_#737373]"
+                  className="sticky top-0 z-10 border border-neutral-200 border-b-2 border-b-neutral-400 bg-white px-2 py-1 text-left whitespace-nowrap dark:border-neutral-800 dark:border-b-neutral-500 dark:bg-neutral-950"
                 >
                   {h}
                 </th>
