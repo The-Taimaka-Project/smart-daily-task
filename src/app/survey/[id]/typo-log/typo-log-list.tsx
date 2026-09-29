@@ -207,7 +207,10 @@ export function TypoLogList({
                 "odk",
                 "dani-revise",
               ].map((h) => (
-                <th key={h} className="border border-neutral-200 px-2 py-1 text-left whitespace-nowrap dark:border-neutral-800">
+                <th
+                  key={h}
+                  className="sticky top-0 z-10 border border-neutral-200 bg-white px-2 py-1 text-left whitespace-nowrap dark:border-neutral-800 dark:bg-neutral-950"
+                >
                   {h}
                 </th>
               ))}

@@ -74,6 +74,7 @@ export function PullControls({ surveyConfigId }: { surveyConfigId: string }) {
             <>
               <p className="text-sm text-neutral-500">
                 Last pull: <StatusBadge status={latest.status} /> ·{" "}
+                {new Date(latest.finishedAt ?? latest.startedAt ?? latest.createdAt).toLocaleString()} ·{" "}
                 {isActive
                   ? (latest.progress ?? "starting...")
                   : latest.householdCount !== null
