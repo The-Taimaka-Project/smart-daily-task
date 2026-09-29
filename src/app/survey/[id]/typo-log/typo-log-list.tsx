@@ -209,7 +209,7 @@ export function TypoLogList({
               ].map((h) => (
                 <th
                   key={h}
-                  className="sticky top-0 z-10 border border-neutral-200 border-b-2 border-b-neutral-400 bg-white px-2 py-1 text-left whitespace-nowrap dark:border-neutral-800 dark:border-b-neutral-500 dark:bg-neutral-950"
+                  className="sticky top-0 z-10 border border-neutral-200 bg-white px-2 py-1 text-left whitespace-nowrap shadow-[0_2px_0_0_#a3a3a3] dark:border-neutral-800 dark:bg-neutral-950 dark:shadow-[0_2px_0_0_#737373]"
                 >
                   {h}
                 </th>
