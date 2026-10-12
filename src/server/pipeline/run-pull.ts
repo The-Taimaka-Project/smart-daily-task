@@ -456,31 +456,46 @@ export async function runPullJob(pullJobId: string, odkSession: OdkSession): Pro
     // configured), no extra network call. This was the table that made the
     // paginated OData approach necessary in the first place -- now it's
     // just in-memory arrays from downloads that already happened. Main and
-    // revisit members are combined into one set, matching the notebook's
-    // `df_final = pd.concat([df_child, df_revisit], axis=0)`. --
+    // revisit members are combined for CHILD records, matching the
+    // notebook's `df_final = pd.concat([df_child, df_revisit], axis=0)`. --
     reportProgress(pullJobId, "Processing members (children + progress data)...");
     let childRecords: NonNullable<ReturnType<typeof extractChild>>[] = [];
     try {
-      const rawMembers = [
-        ...repeatRows(mainTables, config.mainFormId, "members"),
-        ...(revisitTables
-          ? repeatRows(revisitTables, config.revisitFormId!, "members").map(reshapeRevisitMemberRaw)
-          : []),
-      ];
+      const mainRawMembers = repeatRows(mainTables, config.mainFormId, "members");
+      const revisitRawMembers = revisitTables
+        ? repeatRows(revisitTables, config.revisitFormId!, "members").map(reshapeRevisitMemberRaw)
+        : [];
+      const rawMembers = [...mainRawMembers, ...revisitRawMembers];
       reportProgress(pullJobId, `Members: ${rawMembers.length} rows. Processing...`);
 
-      const currentMembers: HouseholdMemberRecord[] = [];
       for (const raw of rawMembers) {
         const parentId = raw["__Submissions-id"];
         const household = typeof parentId === "string" ? householdByOdkId.get(parentId) : undefined;
         if (!household) continue;
         const child = extractChild(raw, household.surveyDate, household);
         if (child) childRecords.push(child);
-        const member = extractHouseholdMemberCurrent(raw, household.surveyDate);
-        if (member) currentMembers.push(member);
       }
       childRecords = assignChildIds(childRecords);
       await persistChildren(config.id, pullJobId, childRecords);
+
+      // Sample-size-achieved ("current members") is ported from the
+      // notebook's `process_mortality_members(df_current=df_current,
+      // df_id=df_id, ..., form_id="smart_round3")` -- called with ONLY the
+      // main form's data, never the revisit form's. A revisit is a
+      // follow-up visit to a household already counted once in the main
+      // round, so folding its members in here (as childRecords correctly
+      // does, for measurement purposes) would double-count the same
+      // physical child toward the progress metric -- confirmed as the
+      // exact cause of this app overshooting the notebook's number by
+      // however many children had a revisit by the time of a given pull.
+      const currentMembers: HouseholdMemberRecord[] = [];
+      for (const raw of mainRawMembers) {
+        const parentId = raw["__Submissions-id"];
+        const household = typeof parentId === "string" ? householdByOdkId.get(parentId) : undefined;
+        if (!household) continue;
+        const member = extractHouseholdMemberCurrent(raw, household.surveyDate);
+        if (member) currentMembers.push(member);
+      }
       await persistHouseholdMembers(config.id, pullJobId, currentMembers);
     } catch (err) {
       warnings.push(`members (children + progress data): ${err instanceof Error ? err.message : String(err)}`);
